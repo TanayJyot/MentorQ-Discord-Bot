@@ -110,7 +110,14 @@ class TicketsManager {
 
             ticket.send({ content: `**Mentor:** ${mentor.toString()}\n**Hacker:** ${member.toString()}`, embeds: [newEmbed.setColor("Blurple")], components: [closeButton, reassignSelect] });
         } else {
-            ticket.send({ content: `**Organizer:** ${mentor.toString()}\n**Hacker:** ${member.toString()}`, embeds: [newEmbed.setColor("Blurple")], components: [closeButton] });
+            const reassignSelect = new ActionRowBuilder()
+                .setComponents(
+                    new UserSelectMenuBuilder()
+                        .setCustomId("reassign-organizer")
+                        .setPlaceholder("Assign another organizer")
+                );
+
+            ticket.send({ content: `**Organizer:** ${mentor.toString()}\n**Hacker:** ${member.toString()}`, embeds: [newEmbed.setColor("Blurple")], components: [closeButton, reassignSelect] });
         }
 
         member.send({ embeds: [this.MentorQ.util.infoEmbed(`Your ${isOrganizer ? "Organizer" : "mentor"} request ticket has been opened.\nContact them here: ${ticket.toString()}`)] }).catch(() => { });
