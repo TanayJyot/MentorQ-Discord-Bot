@@ -4,7 +4,7 @@ class ClaimOrganizerButton extends Component {
     constructor(client) {
         super(client, {
             name: "claim-organizer",
-            category: "admin", // Changing to admin since you likely need to be an Organizer/Admin to claim these. Or we can just rely on the channel ping.
+            category: "organizer",
             cooldown: 5,
         });
     }

@@ -32,6 +32,8 @@ class InteractionCreateEvent extends Event {
             return interaction.reply({ ephemeral: true, embeds: [this.MentorQ.util.errorEmbed("This command can only be used by developers.")] });
         if (command.config.category == "admin" && !interaction.member.permissions.has("ManageGuild"))
             return interaction.reply({ ephemeral: true, embeds: [this.MentorQ.util.errorEmbed("This command can only be used by administrators.")] });
+        if (command.config.category == "organizer" && !interaction.member.permissions.has("ManageGuild") && !interaction.member.roles.cache.find(r => r.name == "Organizer" || r.name == "Organizers"))
+            return interaction.reply({ ephemeral: true, embeds: [this.MentorQ.util.errorEmbed("This command can only be used by organizers.")] });
         if (command.config.category == "mentor" && !interaction.member.roles.cache.find(r => r.name == "Mentor"))
             return interaction.reply({ ephemeral: true, embeds: [this.MentorQ.util.errorEmbed("This command can only be used by mentors.")] });
 
