@@ -1,5 +1,5 @@
 # MentorQ-Discord-Bot
-HackRU Discord bot to facilitate a mentor queue system.
+GenAI Genesis Discord bot to facilitate a mentor queue system.
 
 ## Setup
 1. Create a bot app from the Discord Dev Portal
@@ -13,9 +13,9 @@ HackRU Discord bot to facilitate a mentor queue system.
 Use the `/setup` command to automatically create the necessary channels and roles (listed below). You may re-order the channels/roles and adjust settings. Do NOT change the names.
 
 - **`@Mentor`**: Assign this role to mentors who will be reviewing and accepting mentor requests to assist participants in the hackathon.
-- **`#mentorq`**: Public MentorQ channel with an info message. Users can click the `Request a mentor` button and will be prompted with a modal form to fill out.
+- **`#help-center`**: Public MentorQ channel with an info message. Users can click the `Request a mentor` button and will be prompted with a modal form to fill out.
 - **`#mentorq-queue`**: Private MentorQ queue channel. When users submit mentor request forms, a message will be sent here with the data.
-  - A mentor can click the `Claim` button to accept the request and open a private ticket (thread channel) between the mentor and the user. The user will be notified via DMs and pinged in the channel. The ticket will automatically archive after 24 hours of inactivity or can be locked & archived by a mentor with the `/close` command or the `Close` button. Archived tickets can be viewed in the threads list of the `#mentorq` channel.
+  - A mentor can click the `Claim` button to accept the request and open a public ticket (thread channel) between the mentor and the user. The user will be notified via DMs and pinged in the channel. The ticket will automatically archive after 24 hours of inactivity or can be locked & archived by a mentor with the `/close` command or the `Close` button. Archived tickets can be viewed in the threads list of the `#help-center` channel.
   - The `Cancel` button can be used to reject a mentor request. This should only be used for invalid requests. The user will be notified via DMs. Once a request is canceled, it can no longer be claimed.
  
 ## Contributing
@@ -24,4 +24,4 @@ Contributions to this repository are welcome. Create an issue and/or open a pull
 ## License
 MentorQ-Discord-Bot is an open-source project licensed under the [MIT License](https://github.com/HackRU/MentorQ-Discord-Bot/blob/main/LICENSE).  
 
-Copyright (c) 2024 HackRU. Developed by Eshaan ([@DaStormer](https://github.com/DaStormer)).
+Copyright (c) 2024 GenAI Genesis. Developed by Eshaan ([@DaStormer](https://github.com/DaStormer)).

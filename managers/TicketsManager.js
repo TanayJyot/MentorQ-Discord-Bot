@@ -1,4 +1,4 @@
-const { ChannelType, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ThreadAutoArchiveDuration } = require("discord.js");
+const { ChannelType, PermissionFlagsBits, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ThreadAutoArchiveDuration, UserSelectMenuBuilder } = require("discord.js");
 
 class TicketsManager {
     /**
@@ -19,21 +19,30 @@ class TicketsManager {
      */
 
     /**
-     * Creates a mentor request and adds to the queue.
+     * Creates a mentor or organizer request and adds to the queue.
      * @param {import("discord.js").GuildMember} member 
      * @param {MentorRequestData} requestData 
+     * @param {boolean} isOrganizer 
      */
-    async create(member, requestData) {
+    async create(member, requestData, isOrganizer = false) {
 
         const queueEmbed = new EmbedBuilder()
-            .setAuthor({ name: `Mentor Request - ${member.user.username}`, iconURL: member.displayAvatarURL() })
-            .setTitle(`Project: ${requestData.title}`)
-            .setDescription(requestData.description)
-            .addFields([
+            .setAuthor({ name: `${isOrganizer ? "Organizer" : "Mentor"} Request - ${member.user.username}`, iconURL: member.displayAvatarURL() })
+            .setTitle(isOrganizer ? requestData.title : `Project: ${requestData.title}`)
+            .setDescription(requestData.description);
+        if (!isOrganizer) {
+            queueEmbed.addFields([
                 { name: "Name:", value: requestData.name, inline: true },
                 { name: "Team Members:", value: requestData.team, inline: true },
                 { name: "Programming Language:", value: requestData.language },
-            ])
+            ]);
+        } else {
+            queueEmbed.addFields([
+                { name: "Name:", value: requestData.name, inline: true },
+            ]);
+        }
+
+        queueEmbed
             .setFooter({ text: `User ID: ${member.id}` })
             .setColor("Yellow")
             .setTimestamp();
@@ -42,26 +51,31 @@ class TicketsManager {
             .setComponents(
                 new ButtonBuilder()
                     .setLabel("Claim")
-                    .setCustomId("claim")
+                    .setCustomId(isOrganizer ? "claim-organizer" : "claim")
                     .setStyle(ButtonStyle.Success),
                 new ButtonBuilder()
                     .setLabel("Cancel")
-                    .setCustomId("cancel")
+                    .setCustomId(isOrganizer ? "cancel-organizer" : "cancel")
                     .setStyle(ButtonStyle.Danger),
             );
 
-        await this.getQueueChannel(member.guild).send({ embeds: [queueEmbed], components: [buttons] });
+        if (isOrganizer) {
+            await this.getOrganizerQueueChannel(member.guild).send({ embeds: [queueEmbed], components: [buttons] });
+        } else {
+            await this.getQueueChannel(member.guild).send({ embeds: [queueEmbed], components: [buttons] });
+        }
 
         return;
 
     }
 
     /**
-     * Claim a pending mentor request in the queue and open the ticket.
+     * Claim a pending request in the queue and open the ticket.
      * @param {import("discord.js").GuildMember} mentor 
      * @param {import("discord.js").Message} qMessage 
+     * @param {boolean} isOrganizer
      */
-    async claim(mentor, qMessage) {
+    async claim(mentor, qMessage, isOrganizer = false) {
         const request = this.parseQueueEmbed(qMessage.embeds[0]);
         const newEmbed = new EmbedBuilder(qMessage.embeds[0].toJSON());
 
@@ -69,8 +83,8 @@ class TicketsManager {
         if (!member) return;
 
         const ticket = await this.getRequestsChannel(mentor.guild).threads.create({
-            name: request.requestData.title + "-" + request.userID,
-            type: ChannelType.PrivateThread,
+            name: `${isOrganizer ? "org" : "ticket"}-${request.requestData.title.slice(0, 10)}-${request.userID}`,
+            type: isOrganizer ? ChannelType.PrivateThread : ChannelType.PublicThread,
             invitable: true,
             autoArchiveDuration: ThreadAutoArchiveDuration.OneDay,
         });
@@ -86,9 +100,20 @@ class TicketsManager {
                     .setStyle(ButtonStyle.Danger),
             );
 
-        ticket.send({ content: `**Mentor:** ${mentor.toString()}\n**Hacker:** ${member.toString()}`, embeds: [newEmbed.setColor("Blurple")], components: [closeButton] });
+        if (!isOrganizer) {
+            const reassignSelect = new ActionRowBuilder()
+                .setComponents(
+                    new UserSelectMenuBuilder()
+                        .setCustomId("reassign-mentor")
+                        .setPlaceholder("Assign another mentor")
+                );
 
-        member.send({ embeds: [this.MentorQ.util.infoEmbed(`Your mentor request ticket has been opened.\nContact your mentor here: ${ticket.toString()}`)] }).catch(() => { });
+            ticket.send({ content: `**Mentor:** ${mentor.toString()}\n**Hacker:** ${member.toString()}`, embeds: [newEmbed.setColor("Blurple")], components: [closeButton, reassignSelect] });
+        } else {
+            ticket.send({ content: `**Organizer:** ${mentor.toString()}\n**Hacker:** ${member.toString()}`, embeds: [newEmbed.setColor("Blurple")], components: [closeButton] });
+        }
+
+        member.send({ embeds: [this.MentorQ.util.infoEmbed(`Your ${isOrganizer ? "Organizer" : "mentor"} request ticket has been opened.\nContact them here: ${ticket.toString()}`)] }).catch(() => { });
 
         qMessage.edit({ content: `❕ **CLAIMED** by <@${mentor.user.id}>`, embeds: [newEmbed.setColor("Green")], components: [] });
 
@@ -113,27 +138,29 @@ class TicketsManager {
     }
 
     /**
-     * Cancel a pending mentor request in the queue.
+     * Cancel a pending request in the queue.
      * @param {import("discord.js").GuildMember} mentor 
      * @param {import("discord.js").Message} qMessage 
+     * @param {boolean} isOrganizer
      */
-    async cancel(mentor, qMessage) {
+    async cancel(mentor, qMessage, isOrganizer = false) {
         const request = this.parseQueueEmbed(qMessage.embeds[0]);
         const newEmbed = new EmbedBuilder(qMessage.embeds[0].toJSON()).setColor("Red");
         await qMessage.edit({ content: `❗ **CANCELLED** by <@${mentor.user.id}>`, embeds: [newEmbed], components: [] });
 
         const member = await this.MentorQ.util.fetchMember(mentor.guild, request.userID);
-        if (member) member.send({ embeds: [this.MentorQ.util.infoEmbed(`Your mentor request (\`${request.requestData.title}\`) created ${this.MentorQ.util.createTimestamp(qMessage.createdAt)} has been **CANCELLED** by ${mentor.user.tag}.`)] }).catch(() => { });
+        if (member) member.send({ embeds: [this.MentorQ.util.infoEmbed(`Your ${isOrganizer ? "Organizer " : ""}request (\`${request.requestData.title}\`) created ${this.MentorQ.util.createTimestamp(qMessage.createdAt)} has been **CANCELLED** by ${mentor.user.tag}.`)] }).catch(() => { });
 
         return true;
     }
 
     /**
      * @param {import("discord.js").GuildMember} member 
+     * @param {boolean} isOrganizer
      * @returns {import("discord.js").ThreadChannel}
      */
-    getTicket(member) {
-        return this.getRequestsChannel(member.guild)?.threads?.cache?.find(t => !t.archived && !t.locked && t.name.includes(member.id));
+    getTicket(member, isOrganizer = false) {
+        return this.getRequestsChannel(member.guild)?.threads?.cache?.find(t => !t.archived && !t.locked && t.name.includes(member.id) && t.name.startsWith(isOrganizer ? "org-" : "ticket-"));
     }
 
     /**
@@ -141,7 +168,7 @@ class TicketsManager {
      * @returns {import("discord.js").TextChannel}
      */
     getRequestsChannel(guild) {
-        return guild.channels.cache.find(c => c.type == ChannelType.GuildText && c.name == "mentorq");
+        return guild.channels.cache.find(c => c.type == ChannelType.GuildText && c.name == "🎓┃help-center");
     }
 
     /**
@@ -154,10 +181,26 @@ class TicketsManager {
 
     /**
      * @param {import("discord.js").Guild} guild 
+     * @returns {import("discord.js").TextChannel}
+     */
+    getOrganizerQueueChannel(guild) {
+        return guild.channels.cache.find(c => c.type == ChannelType.GuildText && c.name == "organizerq-queue");
+    }
+
+    /**
+     * @param {import("discord.js").Guild} guild 
      * @returns {import("discord.js").Role}
      */
     getMentorRole(guild) {
         return guild.roles.cache.find(r => r.name == "Mentor");
+    }
+
+    /**
+     * @param {import("discord.js").Guild} guild 
+     * @returns {import("discord.js").Role}
+     */
+    getOrganizerRole(guild) {
+        return guild.roles.cache.find(r => r.name == "Organizer" || r.name == "Organizers");
     }
 
     /**
@@ -166,7 +209,7 @@ class TicketsManager {
      * @returns {boolean}
      */
     isActive(guild) {
-        if (this.getRequestsChannel(guild) && this.getQueueChannel(guild) && this.getMentorRole(guild))
+        if (this.getRequestsChannel(guild) && this.getQueueChannel(guild) && this.getMentorRole(guild) && this.getOrganizerQueueChannel(guild))
             return true;
         else return false;
     }
@@ -182,6 +225,7 @@ class TicketsManager {
 
         try {
             const mentorRole = this.getMentorRole(guild) || await guild.roles.create({ name: "Mentor" });
+            const organizerRole = this.getOrganizerRole(guild) || await guild.roles.create({ name: "Organizer" });
 
             const category = guild.channels.cache.find(c => c.type == ChannelType.GuildCategory && c.name == "MentorQ") || await guild.channels.create({
                 type: ChannelType.GuildCategory,
@@ -193,9 +237,16 @@ class TicketsManager {
 
             const requestsChannel = this.getRequestsChannel(guild) || await guild.channels.create({
                 type: ChannelType.GuildText,
-                name: "mentorq",
+                name: "🎓┃help-center",
                 parent: category,
             });
+
+            if (organizerRole) {
+                await requestsChannel.permissionOverwrites.edit(organizerRole.id, {
+                    ViewChannel: true,
+                    ManageThreads: true
+                }).catch(() => {});
+            }
 
             if (!this.getQueueChannel(guild)) {
                 await guild.channels.create({
@@ -209,11 +260,23 @@ class TicketsManager {
                 });
             }
 
+            if (!this.getOrganizerQueueChannel(guild)) {
+                await guild.channels.create({
+                    type: ChannelType.GuildText,
+                    name: "organizerq-queue",
+                    parent: category,
+                    permissionOverwrites: [
+                        { id: guild.id, deny: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ManageMessages] },
+                        { id: organizerRole.id, allow: [PermissionFlagsBits.ViewChannel] },
+                    ],
+                });
+            }
+
             const infoEmbed = new EmbedBuilder()
-                .setTitle("MentorQ - Request mentors during HackRU!")
-                .setDescription("MentorQ is a custom Discord bot for HackRU to facilitate a ticket queue system connecting hackers and mentors. Submit a mentor request with basic project details to the queue by clicking the button below and we'll match you with a mentor! You'll get a ping in this server when a mentor accepts your request.\n\nDon't worry if you're just starting out, we're here to help!")
+                .setTitle("🎓┃Help Center - Request assistence during GenAI Genesis!")
+                .setDescription("The Help Center is a custom Discord bot for GenAI Genesis to facilitate a ticket queue system connecting hackers with mentors and organizers.\n\n**Mentors:** Submit a mentor request with basic project details to the queue by clicking the button below and we'll match you with a mentor! You'll get a ping in this server when a mentor accepts your request.\n\n**Organizers:** Only use Organizer help for personal questions, and use the questions forum otherwise. This will open a private ticket.\n\nDon't worry if you're just starting out, we're here to help!")
                 .setColor("Blurple")
-                .setFooter({ text: "MentorQ is an open source project developed by HackRU RnD." });
+                .setFooter({ text: "MentorQ is an open source project." });
 
             const requestButton = new ActionRowBuilder()
                 .setComponents(
@@ -221,6 +284,10 @@ class TicketsManager {
                         .setLabel("Request a mentor")
                         .setCustomId("request-mentor")
                         .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setLabel("Request Organizer Help")
+                        .setCustomId("request-organizer")
+                        .setStyle(ButtonStyle.Secondary),
                 );
 
             requestsChannel.send({ embeds: [infoEmbed], components: [requestButton] });
@@ -283,6 +350,41 @@ class TicketsManager {
         return mentorRequestModal;
     }
 
+    generateOrganizerRequestModal() {
+        const organizerRequestModal = new ModalBuilder()
+            .setTitle("Organizer Help Request")
+            .setCustomId("organizer-request-form");
+
+        const nameInput = new TextInputBuilder()
+            .setCustomId("name-input")
+            .setStyle(TextInputStyle.Short)
+            .setLabel("What's your name?")
+            .setPlaceholder("Enter your name.")
+            .setRequired(true);
+
+        const titleInput = new TextInputBuilder()
+            .setCustomId("title-input")
+            .setStyle(TextInputStyle.Short)
+            .setLabel("Overview:")
+            .setPlaceholder("Enter brief reason for request.")
+            .setRequired(true);
+
+        const descInput = new TextInputBuilder()
+            .setCustomId("desc-input")
+            .setStyle(TextInputStyle.Paragraph)
+            .setLabel("Description:")
+            .setPlaceholder("Tell us how we can help.")
+            .setRequired(true);
+
+        organizerRequestModal.addComponents(
+            new ActionRowBuilder().addComponents(nameInput),
+            new ActionRowBuilder().addComponents(titleInput),
+            new ActionRowBuilder().addComponents(descInput),
+        );
+
+        return organizerRequestModal;
+    }
+
     /**
      * @typedef {object} ParsedMentorRequest
      * @prop {string} userID
@@ -296,11 +398,13 @@ class TicketsManager {
      */
     parseQueueEmbed(queueEmbed) {
         const userID = queueEmbed.footer.text.split(" ")[2];
+        const isOrganizer = queueEmbed.author.name.startsWith("Organizer");
+
         const requestData = {
             name: queueEmbed.fields[0].value,
-            team: queueEmbed.fields[1].value,
-            title: queueEmbed.title.substring(9),
-            language: queueEmbed.fields[2].value,
+            team: isOrganizer ? "N/A" : queueEmbed.fields[1].value,
+            title: isOrganizer ? queueEmbed.title : queueEmbed.title.substring(9), // Only remove "Project: " for mentors
+            language: isOrganizer ? "N/A" : queueEmbed.fields[2].value,
             description: queueEmbed.description,
         };
         return { userID, requestData };

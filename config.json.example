@@ -1,7 +1,0 @@
-{
-    "prefix": "?",
-    "developers": [
-        "DISCORD_USER_ID"
-    ],
-    "logsWebhook": "DISCORD_WEBHOOK_URL"
-}

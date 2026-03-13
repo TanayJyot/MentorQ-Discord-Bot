@@ -17,10 +17,10 @@ class WarningProcessEvent extends Event {
         console.error("WARNING | " + warning.stack);
 
         const errorEmbed = new EmbedBuilder()
-            .setAuthor({ name: "Warning", iconURL: this.MentorQ.user.displayAvatarURL() })
+            .setAuthor({ name: "Warning", iconURL: this.MentorQ.user?.displayAvatarURL() })
             .setColor("Yellow")
             .setDescription(warning.stack.length < 4000 ? warning.stack : warning.stack.substring(0, 4000))
-            .setFooter({ text: this.MentorQ.user.tag })
+            .setFooter({ text: this.MentorQ.user?.tag || "Unknown Bot" })
             .setTimestamp();
 
         this.MentorQ.logs.send({ embeds: [errorEmbed] });

@@ -17,10 +17,10 @@ class UnhandledRejectionProcessEvent extends Event {
         console.error("ERROR | " + error.stack);
 
         const errorEmbed = new EmbedBuilder()
-            .setAuthor({ name: "Error: Unhandled Rejection", iconURL: this.MentorQ.user.displayAvatarURL() })
+            .setAuthor({ name: "Error: Unhandled Rejection", iconURL: this.MentorQ.user?.displayAvatarURL() })
             .setColor("Red")
             .setDescription(error.stack.length < 4000 ? error.stack : error.stack.substring(0, 4000))
-            .setFooter({ text: this.MentorQ.user.tag })
+            .setFooter({ text: this.MentorQ.user?.tag || "Unknown Bot" })
             .setTimestamp();
 
         this.MentorQ.logs.send({ embeds: [errorEmbed] });

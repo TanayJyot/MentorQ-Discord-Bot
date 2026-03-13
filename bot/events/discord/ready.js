@@ -1,5 +1,5 @@
 const Event = require("../../../structures/base/BaseEvent");
-const { EmbedBuilder, ActivityType } = require("discord.js");
+const { EmbedBuilder } = require("discord.js");
 
 class ReadyEvent extends Event {
     /**
@@ -25,7 +25,7 @@ class ReadyEvent extends Event {
 
         this.MentorQ.logs.send({ embeds: [onlineEmbed] });
 
-        this.MentorQ.user.setPresence({ activities: [{ type: ActivityType.Watching, name: "HackRU" }] });
+
 
         return;
 
